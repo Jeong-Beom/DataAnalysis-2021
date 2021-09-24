@@ -1,0 +1,19 @@
+<html>
+    <head>
+        <title>Iris Details</title>
+        <link href = "{{ url_for('static', path = '/styles.css') }}" rel = "stylesheet">
+        <h1>IRIS classifier</h1>
+    </head>
+    <body>
+        <h2>
+            <p>Sepal Length : {{ sl }}</p>
+            <p>Sepal Width : {{ sw }}</p>
+            <p>Petal Length : {{ pl }}</p>
+            <p>Petal Width : {{ pw }}</p>
+            </form>
+        </h2>
+        <h3>
+            Result species : {{ result }}
+        </h3>
+    </body>
+</html>

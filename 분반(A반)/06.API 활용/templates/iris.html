@@ -1,0 +1,18 @@
+<html>
+    <head>
+        <title>Iris Details</title>
+        <link href = "{{ url_for('static', path = '/styles.css') }}" rel = "stylesheet">
+        <h1>IRIS classifier</h1>
+    </head>
+    <body>
+        <h2>
+            <form action='/details/'>
+            <p>Sepal Length : <input id='sl' input type='float'/></p>
+            <p>Sepal Width : <input id='sw' input type='float'/></p>
+            <p>Petal Length : <input id='pl' input type='float'/></p>
+            <p>Petal Width : <input id='pw' input type='float'/></p>
+            <p><input type='submit' value='예측결과보기'></p>
+            </form>
+        </h2>
+    </body>
+</html>
