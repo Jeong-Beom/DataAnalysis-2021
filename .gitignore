@@ -8,6 +8,7 @@ data/
 mysql.json
 __pycache__/
 sample(sales_book).csv
+09.RestAPI/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
