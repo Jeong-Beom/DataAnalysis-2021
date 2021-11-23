@@ -44,19 +44,30 @@ Created on 2021
 
 #%%
 
+import pandas as pd
+
+data6=pd.read_csv('Dataset_06.csv')
+
+data6.columns
+# ['id', 'date', 'price', 'bedrooms', 'bathrooms', 'sqft_living',
+#        'sqft_lot', 'floors', 'waterfront', 'view', 'condition', 'grade',
+#        'sqft_above', 'sqft_basement', 'yr_built', 'yr_renovated', 'zipcode',
+#        'sqft_living15', 'sqft_lot15']
+
 # =============================================================================
 # 1.강변 조망이 가능한지 여부(waterfront)에 따라 평균 주택 가격을 계산하고 조망이
 # 가능한 경우와 그렇지 않은 경우의 평균 가격 차이의 절대값을 구하시오. 답은
 # 소수점 이하는 버리고 정수부만 기술하시오. (답안 예시) 1234567
 # =============================================================================
+data6.waterfront.value_counts()
+
+q1_0=data6[data6.waterfront==0]['price'].mean()
+q1_1=data6[data6.waterfront==1]['price'].mean()
 
 
+abs(q1_0 - q1_1)
 
-
-
-
-
-
+# 답: 1167272.748018648 -> 1167272
 
 #%%
 
@@ -67,15 +78,17 @@ Created on 2021
 # 
 # =============================================================================
 
+var_list=['price', 'bedrooms', 'bathrooms', 'sqft_living', 'sqft_lot', 'floors', 'yr_built']
 
 
+q2=data6[var_list].corr()
 
+q2_out=q2.drop('price')['price'].abs()
 
+q2_out.idxmax()  # 'sqft_living'
+q2_out.idxmin()  # 'yr_built'
 
-
-
-
-
+# 답: 'sqft_living', 'yr_built'
 
 #%%
 
@@ -94,12 +107,42 @@ Created on 2021
 # from statsmodels.formula.api import ols
 # =============================================================================
 
+x_list=data6.columns.drop(['id', 'date', 'zipcode', 'price'])
+
+from statsmodels.api import OLS, add_constant
+from statsmodels.formula.api import ols
+
+xx=add_constant(data6[x_list])
+ols1=OLS(data6.price, xx).fit()
+
+q3_out=ols1.pvalues.drop('const')
+
+# form='price~'+'+'.join(x_list)
+# ols2=ols(form, data=data6).fit()
+# ols2.summary()
+# q3_out=ols1.pvalues.drop('Intercept')
+
+# 유의성 갖지 않는 변수 목록
+q3_out.index[q3_out >= 0.05]  # ['sqft_lot', 'sqft_lot15']
+
+# 유의성 갖지 않는 변수 목록 제거
+q3_out_list=q3_out.index[q3_out < 0.05]  
+# ['bedrooms', 'bathrooms', 'sqft_living', 'floors', 'waterfront', 'view',
+# 'condition', 'grade', 'sqft_above', 'sqft_basement', 'yr_built',
+# 'yr_renovated', 'sqft_living15']
+len(q3_out_list) # 13
+
+# 이 때 음의 회귀계수를 가지는 변수는 몇 개인가? 
+q3_param=ols1.params[q3_out_list]
+q3_param[q3_param < 0]
+
+# bedrooms   -24995.525070
+# yr_built    -3666.895673
+
+len(q3_param[q3_param < 0])
 
 
-
-
-
-
+# 답: 13, 2
 
 #%%
 
@@ -139,6 +182,13 @@ Created on 2021
 
 #%%
 
+import pandas as pd
+import numpy as np
+
+data7=pd.read_csv("Dataset_07.csv")
+data7.columns
+# ['Serial_No', 'GRE', 'TOEFL', 'University_Rating', 'SOP', 'LOR', 'CGPA',
+#        'Research', 'Chance_of_Admit']
 # =============================================================================
 # 1. 합격 가능성에 GRE, TOEFL, CGPA 점수 가운데 가장 영향이 큰 것이 어떤 점수인지
 # 알아 보기 위해서 상관 분석을 수행한다.
@@ -148,11 +198,13 @@ Created on 2021
 # =============================================================================
 
 
+var_list=['GRE', 'TOEFL', 'CGPA','Chance_of_Admit']
 
 
+q1=data7[var_list].corr().drop('Chance_of_Admit')['Chance_of_Admit']
+abs(q1).max() 
 
-
-
+# 답: 0.8732890993553003 -> 0.873
 
 #%%
 
@@ -166,15 +218,22 @@ Created on 2021
 # (답안 예시) 1.23
 # =============================================================================
 
+mu=data7['GRE'].mean()
+
+q2=data7.copy()
+q2['GRE_gr']=np.where(q2.GRE >= mu, 1, 0)
+
+g1=q2[q2.GRE_gr == 1]['CGPA']
+g0=q2[q2.GRE_gr == 0]['CGPA']
 
 
+from scipy.stats import ttest_ind
 
+q2_out=ttest_ind(g1, g0, equal_var=True)
 
+q2_out.statistic
 
-
-
-
-
+#답:  19.443291692470982 -> 19.44
 
 #%%
 
@@ -190,10 +249,27 @@ Created on 2021
 # (답안 예시) abc, 0.12
 # =============================================================================
 
+q3=data7.copy()
 
+q3['Ch_cd']=np.where(q3.Chance_of_Admit > 0.5 , 1, 0)
 
+from sklearn.linear_model import LogisticRegression
 
+x_list=data7.columns.drop(['Serial_No','Chance_of_Admit'])
 
+logit=LogisticRegression(fit_intercept=False, 
+                         random_state=12, solver = 'liblinear')
+
+logit.fit(q3[x_list], q3['Ch_cd'])
+#abs(logit.coef_).max() # 1.955355062462584
+
+logit.coef_.shape
+q3_out=pd.Series(logit.coef_.reshape(-1))
+
+q3_out.index=x_list
+q3_out.abs().nlargest(1)
+
+# 답: CGPA, 1.955355 -> CGPA,    1.96
 
 
 #%%
@@ -228,16 +304,29 @@ Created on 2021
 
 #%%
 
+import pandas as pd
+
+data8=pd.read_csv('Dataset_08.csv')
+
+
+#%%
+
 # =============================================================================
 # 1.각 주(State)별 데이터 구성비를 소수점 둘째 자리까지 구하고, 알파벳 순으로
 # 기술하시오(주 이름 기준).
 # (답안 예시) 0.12, 0.34, 0.54
 # =============================================================================
 
+data8.columns
+# ['RandD_Spend', 'Administration', 'Marketing_Spend', 'State', 'Profit']
 
+data8['State'].value_counts(normalize=True).sort_index().values
 
+# California    0.34
+# Florida       0.32
+# New York      0.34
 
-
+# (정답) [0.34, 0.32, 0.34]
 
 #%%
 
@@ -245,13 +334,16 @@ Created on 2021
 # 2.주별 이익의 평균을 구하고, 평균 이익이 가장 큰 주와 작은 주의 차이를 구하시오. 
 # 차이값은 소수점 이하는 버리고 정수부분만 기술하시오. (답안 예시) 1234
 # =============================================================================
+q2=data8.copy()
+
+q2_tab=pd.pivot_table(data=q2,
+               index='State',
+               values='Profit')
+
+q2_tab.max() - q2_tab.min()
 
 
-
-
-
-
-
+# (정답) 14868.849081 -> 14868
 
 #%%
 
@@ -264,16 +356,28 @@ Created on 2021
 # (답안 예시) ABC, 1.56
 # =============================================================================
 
+from sklearn.linear_model import LinearRegression
 
+q3=data8.copy()
+q3.columns
+x_var=['RandD_Spend', 'Administration', 'Marketing_Spend']
+state_list=q3.State.unique()
+ 
+q3_out=[]
+for i in state_list:
+    temp=q3[q3.State == i]
+    lm=LinearRegression().fit(temp[x_var], temp['Profit'])
+    pred=lm.predict(temp[x_var])
+    # MAPE = Σ ( | y - y ̂ | / y ) * 100/n 
+    mape=(abs(temp['Profit'] - pred) / temp['Profit']).sum() * 100 / len(temp)
 
+    q3_out.append([i, mape])
 
+q3_out=pd.DataFrame(q3_out, columns=['var', 'mape'])
 
+q3_out.sort_values(by='mape', ascending=True).head(1)
 
-
-
-
-
-
+# (정답) Florida  5.706713
 
 #%%
 
@@ -322,16 +426,22 @@ Created on 2021
 
 #%%
 
+import pandas as pd
+
+data9=pd.read_csv('Dataset_09.csv')
+
+#%%
+
 # =============================================================================
 # 1.데이터 타입을 위 표에 정의된 타입으로 전처리를 한 후, 데이터 파일 내에 결측값은
 # 총 몇 개인가? (답안 예시) 1
 # =============================================================================
 
 
+data9.isna().sum().sum()
 
 
-
-
+# (정답) 5
 
 #%%
 # =============================================================================
@@ -345,16 +455,34 @@ Created on 2021
 # (답안 예시) 123
 # =============================================================================
 
+q2=data9.copy()
+q2.columns
+
+import numpy as np
+q2['Age_gr']=np.where(q2.Age <= 20, 10,
+                np.where(q2.Age <= 30, 20,
+                   np.where(q2.Age <= 40, 30,
+                     np.where(q2.Age <= 50, 40,
+                        np.where(q2.Age <= 60, 50,  60)))))
 
 
+from scipy.stats import chi2_contingency
 
 
+# - Age_gr, Gender, Customer_Type, Class 변수가 satisfaction에 영향이 있는지
+var_list=['Age_gr', 'Gender', 'Customer_Type', 'Class']
 
+q2_out=[]
+for i in var_list:
+    q2_tab=pd.crosstab(index=q2[i], columns=q2['satisfaction'])
+    chi, pvalue, *_=chi2_contingency(q2_tab)
+    q2_out.append([i, chi, pvalue])
 
+q2_out=pd.DataFrame(q2_out, columns=['var', 'chi', 'pvalue'])
 
+q2_out[q2_out.pvalue < 0.05]['chi']
 
-
-
+# (정답) 1068.632582 -> 1068
 
 #%%
 
@@ -374,16 +502,52 @@ Created on 2021
 
 
 
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+# from sklearn import metrics
+from sklearn.metrics import f1_score, classification_report
 
 
+x_var=['Flight_Distance', 'Seat_comfort', 'Food_and_drink',
+       'Inflight_wifi_service','Inflight_entertainment', 'Onboard_service', 
+       'Leg_room_service', 'Baggage_handling', 'Cleanliness',
+       'Departure_Delay_in_Minutes', 'Arrival_Delay_in_Minutes']
+
+q3=data9.dropna()
+
+X_train, X_test, y_train, y_test = \
+    train_test_split(q3[x_var], q3['satisfaction'], 
+                 test_size = 0.3, random_state = 123)
 
 
+model = LogisticRegression(solver = 'liblinear',random_state=123)
+result = model.fit(X_train, y_train)
+
+y_pred = model.predict(X_test)
 
 
+f1_score(y_test, y_pred, pos_label='dissatisfied')
 
 
+# =============================================================================
+# metrics.accuracy_score(y_test, y_pred)
+# metrics.precision_score(y_test, y_pred)
+
+# metrics.confusion_matrix(y_test, y_pred)
+# FF, FM, MF, MM = metrics.confusion_matrix(y_test, y_pred).ravel()
+# 
+# f1_dissatisfied = 2 / ((1/(258/(79+258))) + (1/(258/(69+258))))
+# f1_dissatisfied
+# 
+# f1_satisfied = 2 / ((1/(193/(79+193))) + (1/(193/(69+193))))
+# f1_satisfied
+# 
+# result.coef_
+# result.get_params()
+# =============================================================================
 
 
+# (정답) 0.777
 
 
 #%%
@@ -421,6 +585,16 @@ Created on 2021
 
 #%%
 
+import pandas as pd
+import numpy as np
+
+data10=pd.read_csv('Dataset_10.csv')
+data10.info()
+
+data10=data10.dropna(axis=1, how='all')
+data10.columns
+# ['model', 'engine_power', 'age_in_days', 'km', 
+# 'previous_owners', 'price']
 # =============================================================================
 # 1.이전 소유자 수가 한 명이고 엔진 파워가 51인 차에 대해 모델별 하루 평균 운행
 # 거리를 산출하였을 때 가장 낮은 값을 가진 모델이 가장 큰 값을 가진 모델에 대한
@@ -429,17 +603,19 @@ Created on 2021
 # (모델별 평균 → 일평균 → 최대최소 비율 계산) (답안 예시) 0.12
 # =============================================================================
 
+# (1) 이전 소유자 수가 한 명이고 엔진 파워가 51인 차인 데이터 추출
+q1=data10[data10['previous_owners'] == 1]
+q1=q1[q1['engine_power']==51]
 
+q1_tab=pd.pivot_table(q1, index='model',
+                      values=['km','age_in_days'])
 
+# (2) 일평균 운행거리
+q1_tab['km_day']=q1_tab['km']/q1_tab['age_in_days']
 
+q1_tab['km_day'].min()/q1_tab['km_day'].max()
 
-
-
-
-
-
-
-
+# 답: 0.9688580804724013 -> 0.97
 
 #%%
 
@@ -452,13 +628,30 @@ Created on 2021
 # (답안 예시) 0.23, Y
 # =============================================================================
 
+min_group=q1_tab['km_day'].idxmin()
+max_group=q1_tab['km_day'].idxmax()
 
 
+q2=data10.copy()
 
+# (1) 일 운행거리 변수 생성(원데이터 사용)
 
+q2['km_per_day']=q2['km']/q2['age_in_days']
 
+# (2) 2개 그룹 필터
 
+max_km = q2[q2.model==max_group]['km_per_day']
+min_km = q2[q2.model==min_group]['km_per_day']
 
+# (3) 집단간의 평균 차이 검정(독립)
+
+from scipy.stats import ttest_ind
+
+q2_out=ttest_ind(max_km, min_km, equal_var=True)
+
+q2_out.pvalue
+
+# 답: 0.13248244438755083 -> 0.13, N
 
 
 #%%
@@ -471,22 +664,26 @@ Created on 2021
 
 # (답안 예시) 12345
 # =============================================================================
+# model = pop이고 이전 소유자수가 2명인 데이터만을 이용하여 회귀모델을 생성하시오.
 
 
+x_list=['engine_power', 'age_in_days', 'km']
 
 
+q3=data10[data10.model=='pop']
+q3=q3[q3.previous_owners==2]
+
+from sklearn.linear_model import LinearRegression
+
+lm=LinearRegression().fit(q3[x_list], q3.price)
+
+q3_out=lm.predict([[51, 400, 9500]])
 
 
+new_data={'engine_power' : [51],
+          'age_in_days' : [400], 'km' : [9500]}
 
+q3_out=lm.predict(pd.DataFrame(new_data))
 
-
-
-
-
-
-
-
-
-
-
+# 답: 10367.53433763 -> 10367
 
